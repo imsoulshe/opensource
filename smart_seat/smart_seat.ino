@@ -10,7 +10,9 @@
 //   fayoz_parts.ino   parts 2, 3, 6, 7, 8 (Fayoz)
 //   loadcell.ino      part 4 (황현지)
 //   oled_timer.ino    part 5
-//   (part 1 MPU6050: not added yet - see TODO below)
+//   neck_receiver.ino part 1, Mega side (receives the angle from the Nano)
+//
+// Part 1 itself runs on a separate Arduino Nano: ../neck_nano/neck_nano.ino
 // ============================================================================
 
 #include <Wire.h>
@@ -38,13 +40,14 @@ unsigned long seatRemainSec        = 0;
 void setupFayoz();      void updateFayoz();      void updateLed();   // 2,3,6,7,8
 void setupLoadcell();   void updateLoadcell();                       // 4
 void setupOledTimer();  void updateOledTimer();                      // 5
-// TODO part 1: void setupMpu(); void updateMpu();
+void setupMpu();       void updateMpu();                            // 1 (Mega side)
 
 // ----------------------------------------------------------------------------
 // SERIAL_TEST_MODE = 1 : test without the load cells / MPU connected.
 //   Type in the Serial Monitor (115200 baud):
 //     p = toggle person present   n = toggle neckBad   l = toggle leanBad
-//   (buttons, LEDs, OLED and the main logic still run for real)
+//   (load cells and the Nano link are skipped; buttons, LEDs, OLED and
+//    the main logic still run for real)
 // SERIAL_TEST_MODE = 0 : normal operation with real sensors.
 // ----------------------------------------------------------------------------
 #define SERIAL_TEST_MODE 0
@@ -157,6 +160,7 @@ void printStatus() {
   Serial.print(F("seat="));     Serial.print((int)seatState);
   Serial.print(F(" posture=")); Serial.print((int)postureState);
   Serial.print(F(" mode="));    Serial.print((int)useMode);
+  Serial.print(F(" neck="));    Serial.print(neckAngleDeg);
   Serial.print(F(" away="));    Serial.print(isAway);
   Serial.print(F(" L="));       Serial.print(loadLeftG);
   Serial.print(F(" R="));       Serial.print(loadRightG);
@@ -173,8 +177,8 @@ void setup() {
   Serial.begin(115200);
   Wire.begin();
 
-  // TODO part 1: setupMpu();
 #if !SERIAL_TEST_MODE
+  setupMpu();           // Serial1 link to the Nano
   setupLoadcell();      // chair must be empty at power-on (tare)
 #endif
   setupFayoz();
@@ -183,10 +187,10 @@ void setup() {
 
 void loop() {
   // 1) Sensors / inputs
-  // TODO part 1: updateMpu();
 #if SERIAL_TEST_MODE
   updateTestInput();
 #else
+  updateMpu();
   updateLoadcell();
 #endif
   updateFayoz();        // ultrasonic, IR, mode button, away button

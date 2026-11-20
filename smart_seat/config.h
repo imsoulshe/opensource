@@ -22,7 +22,11 @@ const float NECK_ANGLE_LIMIT_LAPTOP_DEG = 30.0;   // bad-posture limit in laptop
 const float NECK_ANGLE_LIMIT_BOOK_DEG   = 45.0;   // bad-posture limit in book mode
 const float COMPLEMENTARY_ALPHA         = 0.96;   // gyro/accel complementary filter ratio
 const unsigned long BAD_POSTURE_HOLD_MS = 3000;   // must persist this long to count as bad
-const int MPU_SAMPLE_INTERVAL_MS        = 20;
+const int MPU_SAMPLE_INTERVAL_MS        = 20;     // used on the Nano (neck_nano.ino)
+// MPU6050 runs on a separate Arduino Nano that sends "A:<angle>\n" to the Mega.
+// Wiring: Nano TX(1) -> Mega RX1(19), Nano GND - Mega GND.
+const long          NECK_SERIAL_BAUD     = 115200;  // must match SERIAL_BAUD on the Nano
+const unsigned long NECK_DATA_TIMEOUT_MS = 1000;    // no data this long => sensor offline
 
 // ---- Load cells ----
 const float PRESENCE_WEIGHT_MIN_G = 20000;        // above this => person present
@@ -49,7 +53,7 @@ const int LED_BRIGHTNESS          = 255;
 const int BTN_DEBOUNCE_MS         = 50;
 
 // ---- OLED hardware (added by part 5; SSD1306 128x64 over I2C) ----
-// On Arduino Mega the I2C pins are SDA=20, SCL=21 (shared with the MPU6050).
+// On Arduino Mega the I2C pins are SDA=20, SCL=21 (the MPU6050 is on the Nano, not here).
 const int     OLED_WIDTH    = 128;
 const int     OLED_HEIGHT   = 64;
 const uint8_t OLED_I2C_ADDR = 0x3C;   // some modules use 0x3D
