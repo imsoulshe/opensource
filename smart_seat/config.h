@@ -34,6 +34,9 @@ const float LOADCELL_CAL_FACTOR_R = 1.0;
 // ---- Ultrasonic / IR ----
 const float ULTRASONIC_NEAR_CM = 50.0;
 const int   SENSOR_DEBOUNCE_MS = 500;
+const unsigned long ULTRASONIC_SAMPLE_INTERVAL_MS = 100;    // how often to measure (ms) (added by part 2)
+const unsigned long ULTRASONIC_TIMEOUT_US         = 25000;  // echo wait limit (~4 m)    (added by part 2)
+const bool          IR_ACTIVE_LOW                 = true;   // most IR modules output LOW on obstacle (part 3)
 
 // ---- Timers ----
 const unsigned long SEAT_TOTAL_SEC = 4UL * 60 * 60;   // max seat usage time

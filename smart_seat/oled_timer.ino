@@ -81,6 +81,7 @@ void setupOledTimer() {
 // ----------------------------------------------------------------------------
 // updateOledTimer(): call every loop(). Never blocks.
 // Call it AFTER updateSeatState() so it sees this loop's seatState/postureState.
+// (Serial test mode for this part is now in smart_seat.ino: SERIAL_TEST_MODE.)
 // ----------------------------------------------------------------------------
 void updateOledTimer() {
   unsigned long now = millis();
