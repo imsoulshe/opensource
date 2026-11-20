@@ -12,7 +12,7 @@
 //
 //  Format sent to the Mega (one line each)
 //    "A:12.3\n" : 12.3 deg forward of good posture (forward = +)
-//    "E\n"      : MPU connection error
+//    "E\n"      : MPU connection error (failed at startup or disconnected during use)
 //
 //  Wiring
 //    MPU6050  VCC->Nano 5V, GND->Nano GND, SDA->Nano A4, SCL->Nano A5
@@ -34,6 +34,8 @@ const float         COMPLEMENTARY_ALPHA    = 0.96;   // how much to trust the gy
 const unsigned long MPU_SAMPLE_INTERVAL_MS = 20;     // sensor read interval
 const unsigned long SEND_INTERVAL_MS       = 50;     // send-to-Mega interval
 const unsigned long RETRY_INTERVAL_MS      = 2000;   // retry interval when connection fails
+const int           MPU_FAIL_LIMIT         = 10;     // [added] this many failed reads in a row => disconnected
+const unsigned long WIRE_TIMEOUT_US        = 3000;   // [added] max wait for one I2C transfer
 const int           GYRO_BIAS_SAMPLES      = 200;    // samples for gyro bias (~0.4 s)
 const float         GYRO_SIGN              = 1.0;    // set -1.0 if angle jumps the wrong way when leaning
 const int           PIN_STATUS_LED         = 13;     // Nano built-in LED (on while measuring gyro bias)
@@ -54,6 +56,7 @@ int16_t rawAx, rawAy, rawAz;         // raw accel
 int16_t rawGx, rawGy, rawGz;         // raw gyro
 
 bool  mpuReady         = false;      // sensor connected?
+int   mpuFailCount     = 0;          // [added] failed reads in a row
 float gyroBiasY        = 0.0;        // gyro offset when standing still
 float filteredAngleDeg = 0.0;        // current absolute angle from the filter
 
@@ -132,6 +135,7 @@ bool initMpu() {
   gyroBiasY        = sumGy / count;
   filteredAngleDeg = calcAccelAngleDeg();              // start filter at current accel angle
   lastMicros       = micros();
+  mpuFailCount     = 0;                                // [added] reset fail count
   return true;
 }
 
@@ -143,7 +147,16 @@ void updateMpu() {
   if (nowMs - lastSampleMs < MPU_SAMPLE_INTERVAL_MS) return;
   lastSampleMs = nowMs;
 
-  if (!readMpuRaw()) return;
+  // [changed] count failed reads in a row; over the limit => treat as disconnected
+  if (!readMpuRaw()) {
+    mpuFailCount++;
+    if (mpuFailCount >= MPU_FAIL_LIMIT) {
+      mpuReady    = false;                             // -> send E + go to reconnect retries
+      lastRetryMs = nowMs;                             // count retry interval from the disconnect
+    }
+    return;
+  }
+  mpuFailCount = 0;                                    // any success resets the count
 
   unsigned long nowUs = micros();
   float dt = (nowUs - lastMicros) / 1000000.0;
@@ -181,12 +194,14 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
   pinMode(PIN_STATUS_LED, OUTPUT);
   Wire.begin();
+  Wire.setWireTimeout(WIRE_TIMEOUT_US, true);          // [added] don't hang on I2C if a wire comes loose
   mpuReady = initMpu();
+  lastRetryMs = millis();
 }
 
 void loop() {
   if (!mpuReady) {
-    // On connection failure, retry at a fixed interval
+    // On connection failure / disconnect, retry at a fixed interval
     unsigned long nowMs = millis();
     if (nowMs - lastRetryMs >= RETRY_INTERVAL_MS) {
       lastRetryMs = nowMs;
